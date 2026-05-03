@@ -1,0 +1,28 @@
+<mjml>
+  <mj-body background-color="#f9f9f9">
+    <mj-section padding="20px 0">
+      <mj-column>
+        <mj-text align="center" font-size="20px" color="#333" font-family="Ubuntu, Helvetica, Arial, sans-serif">
+          {{ project_name }}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#ffffff" padding="40px 25px" border-radius="4px">
+      <mj-column>
+        <mj-text font-size="18px" color="#737f8d" font-family="Whitney, Helvetica Neue, Helvetica, Arial, sans-serif">
+          <b>Hey {{ name }},</b>
+        </mj-text>
+        <mj-text font-size="16px" color="#737f8d" font-family="Whitney, Helvetica Neue, Helvetica, Arial, sans-serif">
+          Welcome to {{ project_name }}! We're excited to have you on board.
+        </mj-text>
+        <mj-text font-size="16px" color="#737f8d" font-family="Whitney, Helvetica Neue, Helvetica, Arial, sans-serif">
+          Your account verification is complete, and you're all set to connect with developers, share your projects, and collaborate on exciting new ideas.
+        </mj-text>
+        <mj-divider border-color="#eee" border-width="1px" />
+        <mj-text align="center" font-size="12px" color="#99aab5">
+          <a href="{{ frontend_host }}" style="color:#1eb0f4;text-decoration:none;">Visit our site</a> • @company-name
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

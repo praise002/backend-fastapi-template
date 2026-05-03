@@ -1,0 +1,46 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+
+# Virtual environments
+**/venv
+**/env
+**/.venv
+
+# Editor & OS
+.idea
+**/.vscode
+**/.DS_Store
+
+# Git
+**/.git
+**/.gitignore
+
+# Environment & secrets
+**/.env
+**/.env.*
+**/.aws
+**/.ssh
+
+# Docker files (no need to copy these into the image)
+Dockerfile
+Dockerfile.dev
+docker-compose.yml
+docker-compose.dev.yml
+
+# Coverage & logs
+**/coverage
+logs
+
+# Static & media (served separately in prod)
+static/
+
+# Docs & notes
+**/*.md
+note.txt
+
+# Tests (never in prod image)
+tests/

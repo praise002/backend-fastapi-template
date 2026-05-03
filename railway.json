@@ -1,0 +1,21 @@
+{
+    "build": {
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "./Dockerfile",
+        "watchPatterns": [
+            "requirements/prod.txt",
+            "src/**",
+            "migrations/**",
+            "scripts/**",
+            "Dockerfile"
+        ]
+    },
+    "deploy": {
+      "healthcheckPath": "/api/v1/health/",
+      "healthcheckTimeout": 300,
+      "startupTimeout": 300,
+      "restartPolicyType": "always",
+      "restartPolicyMaxRetries": 10
+    }
+}
+
