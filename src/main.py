@@ -12,9 +12,9 @@ from fastapi.templating import Jinja2Templates
 from starlette_admin.contrib.sqla import Admin, ModelView
 from tenacity import retry, stop_after_delay, wait_fixed
 
-from custom_logging import setup_logging
 from src.auth.router import router as auth_router
 from src.config import Config
+from src.custom_logging import setup_logging
 from src.db.main import async_engine
 from src.db.models import User
 from src.errors import register_all_errors
@@ -94,7 +94,8 @@ app.include_router(profile_router, prefix=f"/api/{version}/profiles", tags=["Pro
 async def wait_for_db():
     """Wait for database to be ready"""
     try:
-        conn = await asyncpg.connect(str(Config.DATABASE_URL))
+        db_url = str(Config.DATABASE_URL).replace("+asyncpg", "")
+        conn = await asyncpg.connect(db_url)
         await conn.close()
     except Exception as e:
         logging.info(f"DB not ready: {e}")
@@ -186,6 +187,6 @@ async def root():
     return RedirectResponse(url=f"/api/{version}/docs")
 
 
-@app.get("/health", tags=["Health"], include_in_schema=False)
+@app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "ok"}

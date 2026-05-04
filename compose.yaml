@@ -14,6 +14,7 @@ services:
       - ./migrations:/code/migrations
       - ./templates:/code/templates
       - ./alembic.ini:/code/alembic.ini
+      - ./static:/code/static
     env_file:
       - .env
     depends_on:
@@ -42,7 +43,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -56,7 +57,7 @@ services:
     image: redis:7-alpine
     container_name: redis_dev
     ports:
-      - "6379:6379"
+      - "6370:6379"  # HOST_PORT:CONTAINER_PORT
     volumes:
       - redis_data:/data
     healthcheck:
