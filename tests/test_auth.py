@@ -49,7 +49,7 @@ class TestUserRegistration:
         assert email_data["email_to"] == valid_user_data["email"]
         assert email_data["subject"] == "Verify your email"
         assert "otp" in email_data["template_context"]
-        assert email_data["template_name"] == "verify_email_request.html"
+        assert email_data["template_name"] == "verify_email_request.mjml"
 
     async def test_register_very_long_password(
         self,
@@ -202,17 +202,22 @@ class TestEmailVerification:
         # Assert: Check response
         assert response.status_code == 200
         response_data = response.json()
+        print(response_data)
 
         assert response_data["status"] == "success"
         assert "verified" in response_data["message"]
 
         # Assert: Check user is verified in database
         user_service = UserService()
+        
         updated_user = await user_service.get_user_by_email(
             registered_user.email, db_session
         )
+        print(updated_user)
+        await db_session.refresh(updated_user)
 
         assert updated_user.is_email_verified is True
+        
 
         # Assert: Check OTP is invalidated
         otp_record = await user_service.get_otp_by_user(
@@ -224,7 +229,7 @@ class TestEmailVerification:
         assert len(mock_email) == 1
 
         email_data = mock_email[0]
-        assert email_data["template_name"] == "welcome_message.html"
+        assert email_data["template_name"] == "welcome_message.mjml"
 
     async def test_verify_email_invalid_otp(
         self,
@@ -396,7 +401,7 @@ class TestResendVerificationEmail:
         # Assert: Check email was sent
         assert len(mock_email) == 1
         email_data = mock_email[0]
-        assert email_data["template_name"] == "verify_email_request.html"
+        assert email_data["template_name"] == "verify_email_request.mjml"
 
         user_service = UserService()
         # Assert: There should be exactly ONE new OTP for the user
@@ -455,7 +460,6 @@ class TestResendVerificationEmail:
         print(response.json())
         # Assert
         assert response.status_code == 422
-
 
 class TestUserLogin:
     """Test suite for user login endpoint."""
@@ -1098,7 +1102,7 @@ class TestPasswordResetRequest:
         assert email_data["email_to"] == verified_user.email
         assert "otp" in email_data["template_context"]
         print(email_data["template_context"])
-        assert email_data["template_name"] == "password_reset_email.html"
+        assert email_data["template_name"] == "password_reset_email.mjml"
 
     async def test_password_reset_request_nonexistent_user(
         self,
@@ -1412,6 +1416,7 @@ class TestPasswordResetComplete:
         updated_user = await user_service.get_user_by_email(
             verified_user.email, db_session
         )
+        await db_session.refresh(updated_user)
 
         # Verify new password works
         from src.auth.security import verify_password
@@ -1422,7 +1427,7 @@ class TestPasswordResetComplete:
         assert len(mock_email) == 1
         email_data = mock_email[0]
         assert email_data["email_to"] == verified_user.email
-        assert email_data["template_name"] == "password_reset_success.html"
+        assert email_data["template_name"] == "password_reset_success.mjml"
 
     async def test_password_reset_complete_user_not_found(
         self,
@@ -1647,6 +1652,7 @@ class TestPasswordChange:
         updated_user = await user_service.get_user_by_email(
             verified_user.email, db_session
         )
+        await db_session.refresh(updated_user)
 
         # Verify new password works
         from src.auth.security import verify_password

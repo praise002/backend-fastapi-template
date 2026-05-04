@@ -8,6 +8,7 @@ from unittest.mock import patch
 import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
@@ -51,7 +52,7 @@ def set_test_env(postgres_container, redis_container):
         f"redis://{redis_container.get_container_host_ip()}"
         f":{redis_container.get_exposed_port(6379)}"
     )
-    os.environ["ENVIRONMENT"] = "test"
+    # os.environ["ENVIRONMENT"] = "test"
     yield
     
 # --- ASYNC ENGINE (session-scoped, built from container URL) ---
@@ -77,25 +78,30 @@ async def async_engine(postgres_container, set_test_env):
     await engine.dispose()
 
 # --- DB SESSION (function-scoped: fresh session per test) ---
+
 @pytest.fixture(scope="function")
 async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
-    async with async_engine.connect() as conn:
-        await conn.begin()  # explicit transaction start
-        async_session = async_sessionmaker(
-            bind=conn,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
-        async with async_session() as session:
-            yield session
-            await session.close()
-        await conn.rollback()  
+    async_session = async_sessionmaker(
+        bind=async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+    async with async_session() as session:
+        yield session
+        # Clean up committed data after each test
+        await session.rollback()
+        # Truncate all tables to reset state
+        async with async_engine.begin() as conn:
+            await conn.execute(text('TRUNCATE TABLE otp, profile, "user" RESTART IDENTITY CASCADE'))
         
 @pytest.fixture(scope="session")
 async def async_client(async_engine, set_test_env) -> AsyncGenerator[AsyncClient, None]:
     from src.db.main import get_session
-    from src.main import app
     from src.limiter import limiter
+    from src.main import app
+    
+    limiter.enabled = False
 
     # Override the get_session dependency so the APP uses the SAME engine as tests
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -255,7 +261,8 @@ async def registered_user(
     from src.auth.service import UserService
     user_service = UserService()
     user_create = UserCreate(**user2_data)
-    return await user_service.create_user(user_create, db_session)
+    user = await user_service.create_user(user_create, db_session)
+    return user
 
 
 @pytest.fixture

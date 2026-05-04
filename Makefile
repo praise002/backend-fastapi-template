@@ -58,7 +58,8 @@ mig:
 	alembic upgrade head
 
 tests:
-	pytest --disable-warnings -vv -x -s
+# 	pytest --disable-warnings -vv -x -s
+	pytest tests/ -v -s
 
 mjml:
 	bash scripts/build-mjml.sh
