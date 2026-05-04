@@ -1,3 +1,4 @@
+
 import os
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
@@ -6,7 +7,9 @@ from unittest.mock import patch
 
 import jwt
 import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from testcontainers.postgres import PostgresContainer
@@ -35,47 +38,86 @@ def redis_container():
 def set_test_env(postgres_container, redis_container):
     """Override env vars so your Config picks up test containers"""
     sync_url = postgres_container.get_connection_url()
-    async_url = sync_url.replace("postgresql://", "postgresql+asyncpg://")
+    async_url = sync_url.replace(
+        "postgresql+psycopg2://",  # testcontainers adds psycopg2 explicitly
+        "postgresql+asyncpg://"
+    )
+    # Fallback in case it's a plain postgresql:// URL
+    if async_url.startswith("postgresql://"):
+        async_url = async_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
     os.environ["DATABASE_URL"] = async_url
     os.environ["REDIS_URL"] = (
         f"redis://{redis_container.get_container_host_ip()}"
         f":{redis_container.get_exposed_port(6379)}"
     )
+    os.environ["ENVIRONMENT"] = "test"
     yield
     
 # --- ASYNC ENGINE (session-scoped, built from container URL) ---
 @pytest.fixture(scope="session")
-async def async_engine(postgres_container):
-    # Testcontainers gives a sync URL like postgresql://...
-    # We convert it to async (asyncpg driver)
-    sync_url = postgres_container.get_connection_url()
-    async_url = sync_url.replace("postgresql://", "postgresql+asyncpg://")
+async def async_engine(postgres_container, set_test_env):
+    host = postgres_container.get_container_host_ip()
+    port = postgres_container.get_exposed_port(5432)
+    user = postgres_container.username
+    password = postgres_container.password
+    db = postgres_container.dbname
 
-    engine = create_async_engine(async_url, echo=True)
+    async_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
+    engine = create_async_engine(async_url, echo=True, poolclass=NullPool)
 
-    # Create all your SQLModel tables
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
     yield engine
 
-    # Drop tables after entire session
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
 
     await engine.dispose()
 
-
 # --- DB SESSION (function-scoped: fresh session per test) ---
 @pytest.fixture(scope="function")
 async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
-    async_session = async_sessionmaker(
-        bind=async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with async_session() as session:
-        yield session
-        await session.rollback()  # clean up after each test
+    async with async_engine.connect() as conn:
+        await conn.begin()  # explicit transaction start
+        async_session = async_sessionmaker(
+            bind=conn,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+        async with async_session() as session:
+            yield session
+            await session.close()
+        await conn.rollback()  
+        
+@pytest.fixture(scope="session")
+async def async_client(async_engine, set_test_env) -> AsyncGenerator[AsyncClient, None]:
+    from src.db.main import get_session
+    from src.main import app
+    from src.limiter import limiter
+
+    # Override the get_session dependency so the APP uses the SAME engine as tests
+    async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
+        async_session = async_sessionmaker(
+            bind=async_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autoflush=False,
+        )
+        async with async_session() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        yield client
+
+    limiter.enabled = True  # restore after session
+    app.dependency_overrides.clear()
 
 
 # --- REDIS CLIENT (function-scoped: flush after each test) ---
@@ -202,7 +244,7 @@ def mock_email() -> Generator[list, None, None]:
             "template_context": template_context,
         })
 
-    with patch("src.auth.service.send_email", fake_send_email):
+    with patch("src.mail.send_email", fake_send_email):
         yield sent_emails
         
 @pytest.fixture

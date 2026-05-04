@@ -9,8 +9,6 @@ from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from starlette_admin.contrib.sqla import Admin, ModelView
 from tenacity import retry, stop_after_delay, wait_fixed
 
@@ -20,6 +18,7 @@ from src.config import Config
 from src.db.main import async_engine
 from src.db.models import User
 from src.errors import register_all_errors
+from src.limiter import limiter
 from src.middleware import register_middleware
 from src.profiles.router import router as profile_router
 
@@ -41,12 +40,20 @@ version = "v1"
 
 setup_logging()
 
-limiter = Limiter(key_func=get_remote_address)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if Config.ENVIRONMENT != "test":   # ← skip in tests
+        # Startup: wait for DB
+        await wait_for_db()
+    yield
+    # Shutdown
 
 app = FastAPI(
     title=Config.PROJECT_NAME,
     description=description,
     version=version,
+    lifespan=lifespan,
     docs_url=f"{Config.API_V1_STR}/docs",
     redoc_url=f"{Config.API_V1_STR}/redoc",
     generate_unique_id_function=custom_generate_unique_id,
@@ -94,14 +101,6 @@ async def wait_for_db():
         raise
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: wait for DB
-    await wait_for_db()
-    yield
-    # Shutdown
-
-app = FastAPI(lifespan=lifespan)
 
 # Custom OpenAPI schema to override 422 validation error response
 def custom_openapi():

@@ -50,8 +50,8 @@ from src.errors import (
     UsernameAlreadyExists,
     UserNotActive,
 )
+from src.limiter import limiter
 from src.mail import send_email_by_type
-from src.main import limiter
 
 router = APIRouter()
 
@@ -69,6 +69,7 @@ REFRESH_TOKEN = Config.REFRESH_TOKEN_EXPIRY
 )
 @limiter.limit("5/minute")
 async def create_user_account(
+    request: Request,
     user_data: UserCreate,
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
@@ -116,6 +117,7 @@ async def create_user_account(
 )
 @limiter.limit("5/minute")
 async def verify_user_account(
+    request: Request,
     data: OtpVerify,
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
@@ -206,6 +208,7 @@ async def resend_verification_email(
 )
 @limiter.limit("5/minute")
 async def login_user(
+    request: Request,
     login_data: UserLoginModel, session: AsyncSession = Depends(get_session)
 ):
     email = login_data.email
@@ -355,6 +358,7 @@ async def password_reset_request(
 )
 @limiter.limit("5/minute")
 async def password_reset_verify_otp(
+    request: Request,
     data: PasswordResetVerifyOtpModel,
     session: AsyncSession = Depends(get_session),
 ):
