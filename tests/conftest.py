@@ -17,7 +17,6 @@ from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
 from src.auth.schemas import UserCreate
-from src.config import Config
 
 
 # --- POSTGRES CONTAINER (session-scoped: starts once, shared across all tests) ---
@@ -323,6 +322,7 @@ async def otp_for_user(
 
 @pytest.fixture
 def expired_refresh_token():
+    from src.config import Config
     now = datetime.now(timezone.utc)
     user_data = {
         "user": {
@@ -340,6 +340,7 @@ def expired_refresh_token():
 
 @pytest.fixture
 def expired_access_token():
+    from src.config import Config
     now = datetime.now(timezone.utc)
     user_data = {
         "user": {
