@@ -12,26 +12,51 @@ on:
 jobs:
     test-backend:
         runs-on: ubuntu-latest
+        
+        services:
+          redis:
+            image: redis:7
+            ports:
+              - 6379:6379
+            options: >-
+              --health-cmd "redis-cli ping"
+              --health-interval 10s
+              --health-timeout 5s
+              --health-retries 5
+          
+          postgres:
+            image: postgres:15
+            env:
+              POSTGRES_USER: postgres
+              POSTGRES_PASSWORD: postgres
+              POSTGRES_DB: testdb
+            ports:
+              - 5432:5432
+            options: >-
+              --health-cmd pg_isready
+              --health-interval 10s
+              --health-timeout 5s
+              --health-retries 5
+
         steps:
             - name: Checkout
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
             - name: Set up Python
-              uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+              uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
               with:
                   python-version: "3.11"
+
             - name: Write .env file from secret
+              run: echo "${{ secrets.ENV_FILE_CONTENTS }}" | base64 --decode > .env
+
+            - name: Override Redis and DB URLs for CI
               run: |
-                echo "${{ secrets.ENV_FILE_CONTENTS }}" | base64 --decode > .env
-              working-directory: .
+                echo "REDIS_URL=redis://localhost:6379" >> .env
+                echo "DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/testdb" >> .env
+
             - name: Install dependencies
               run: pip install -r requirements/dev.txt
+
             - name: Run tests
               run: pytest tests/
-            
-            - name: Migrate DB
-              run: bash scripts/prestart.sh
-              working-directory: .
-            - name: Run tests
-              run: bash scripts/tests-start.sh "Coverage for ${{ github.sha }}"
-              working-directory: .
-            - run: docker compose down -v --remove-orphans
