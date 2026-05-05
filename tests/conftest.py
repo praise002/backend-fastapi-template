@@ -17,6 +17,7 @@ from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
 from src.auth.schemas import UserCreate
+from src.config import Config
 
 
 # --- POSTGRES CONTAINER (session-scoped: starts once, shared across all tests) ---
@@ -49,7 +50,7 @@ def set_test_env(postgres_container, redis_container):
     os.environ["DATABASE_URL"] = async_url
     os.environ["REDIS_URL"] = (
         f"redis://{redis_container.get_container_host_ip()}"
-        f":{redis_container.get_exposed_port(6379)}/0"
+        f":{redis_container.get_exposed_port(6379)}"
     )
     # os.environ["ENVIRONMENT"] = "test"
     yield
@@ -322,7 +323,6 @@ async def otp_for_user(
 
 @pytest.fixture
 def expired_refresh_token():
-    from src.config import Config
     now = datetime.now(timezone.utc)
     user_data = {
         "user": {
@@ -340,7 +340,6 @@ def expired_refresh_token():
 
 @pytest.fixture
 def expired_access_token():
-    from src.config import Config
     now = datetime.now(timezone.utc)
     user_data = {
         "user": {
