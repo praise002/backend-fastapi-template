@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRY: int = 60  # 60 minutes
     REFRESH_TOKEN_EXPIRY: int = 7  # 7 days
     DATABASE_URL: str | None = None
-    REDIS_URL: ClassVar[str] = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://localhost:6379/0"
     JWT_SECRET: str
     JWT_ALGORITHM: str 
     MAIL_USERNAME: str
