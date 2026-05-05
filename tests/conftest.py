@@ -50,7 +50,7 @@ def set_test_env(postgres_container, redis_container):
     os.environ["DATABASE_URL"] = async_url
     os.environ["REDIS_URL"] = (
         f"redis://{redis_container.get_container_host_ip()}"
-        f":{redis_container.get_exposed_port(6379)}"
+        f":{redis_container.get_exposed_port(6379)}/0"
     )
     # os.environ["ENVIRONMENT"] = "test"
     yield
