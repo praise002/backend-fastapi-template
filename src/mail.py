@@ -5,7 +5,8 @@ from fastapi import BackgroundTasks
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from mjml import mjml2html
 
-from src.config import Config, conf
+from src.auth.config import conf
+from src.config import Config
 
 # NOTE: MOVE TO CELERY IF I REQUIRE RELIABILITY & SCALING
 

@@ -1,16 +1,13 @@
 import secrets
 import warnings
-from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal
 
 import cloudinary
-from fastapi_mail import ConnectionConfig
 from pydantic import (
     AnyUrl,
     BeforeValidator,
     EmailStr,
     HttpUrl,
-    SecretStr,
     computed_field,
     model_validator,
 )
@@ -34,30 +31,12 @@ def empty_to_none(v: Any) -> Any:
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
-    ACCESS_TOKEN_EXPIRY: int = 60  # 60 minutes
-    REFRESH_TOKEN_EXPIRY: int = 7  # 7 days
     DATABASE_URL: str | None = None
     REDIS_URL: ClassVar[str] = "redis://localhost:6379/0"
-    JWT_SECRET: str
-    JWT_ALGORITHM: str 
-    MAIL_USERNAME: str
-    MAIL_PASSWORD: str
-    MAIL_FROM: str
-    MAIL_PORT: int
-    MAIL_SERVER: str
-    MAIL_FROM_NAME: str
-    MAIL_STARTTLS: bool = True
-    MAIL_SSL_TLS: bool = False
-    USE_CREDENTIALS: bool = True  # Ensures email authentication is enabled.
-    VALIDATE_CERTS: bool = True  # Ensures email server certificates are validated
     DOMAIN: str
-    EMAIL_OTP_EXPIRE_MINUTES: int = 5
     SECRET_KEY: str = secrets.token_urlsafe(32)
     FRONTEND_HOST: str = "http://localhost:5173"
     FRONTEND_CALLBACK_URL: str
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
-    GOOGLE_REDIRECT_URI: str
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
@@ -132,20 +111,6 @@ Config = Settings()  # type: ignore
 broker_url = Config.REDIS_URL
 result_backend = Config.REDIS_URL
 broker_connection_retry_on_startup = True
-
-conf = ConnectionConfig(
-    MAIL_USERNAME=Config.MAIL_USERNAME,
-    MAIL_PASSWORD=SecretStr(Config.MAIL_PASSWORD),
-    MAIL_FROM=Config.MAIL_FROM,
-    MAIL_PORT=Config.MAIL_PORT,
-    MAIL_SERVER=Config.MAIL_SERVER,
-    MAIL_FROM_NAME=Config.MAIL_FROM_NAME,
-    MAIL_STARTTLS=Config.MAIL_STARTTLS,
-    MAIL_SSL_TLS=Config.MAIL_SSL_TLS,
-    USE_CREDENTIALS=Config.USE_CREDENTIALS,
-    VALIDATE_CERTS=Config.VALIDATE_CERTS,
-    TEMPLATE_FOLDER=Path("templates"),
-)
 
 
 cloudinary.config(

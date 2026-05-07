@@ -62,8 +62,15 @@ Follow these steps to get your local development environment up and running.
     ```
     The API will be available at `http://localhost:8000`.
 
-## Project Structure
 
+## 🏗️ Project Structure
+
+This project follows **Onion Architecture** with a **modular structure** to ensure:
+- **Separation of Concerns**: Each layer has a single responsibility
+- **Testability**: Easy to mock dependencies at each layer
+- **Scalability**: Modules can be developed and deployed independently
+- **Maintainability**: Clear dependency flow (inward-only)
+  
 TODO: Complete this section later. The project structure is currently being refined.
 
 ## Usage

@@ -9,20 +9,24 @@ from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from redis import asyncio as aioredis
 from starlette_admin.contrib.sqla import Admin, ModelView
 from tenacity import retry, stop_after_delay, wait_fixed
 
+from errors import register_global_error_handlers
+from src.auth.errors import register_auth_error_handlers
+from src.auth.redis import RedisService
 from src.auth.router import router as auth_router
 from src.config import Config
 from src.custom_logging import setup_logging
-from src.db.main import async_engine
+from src.db.database import async_engine
 from src.db.models import User
-from src.errors import register_all_errors
 from src.limiter import limiter
 from src.middleware import register_middleware
 from src.profiles.router import router as profile_router
 
 setup_logging()
+
 
 def custom_generate_unique_id(route: APIRoute) -> str:
     tag = route.tags[0] if route.tags else "default"
@@ -43,11 +47,22 @@ setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if Config.ENVIRONMENT != "test":   # ← skip in tests
+    if Config.ENVIRONMENT != "test":  # ← skip in tests
         # Startup: wait for DB
         await wait_for_db()
+    
+    redis_client = aioredis.from_url(
+        Config.REDIS_URL,
+        encoding="utf-8",
+        decode_responses=True,
+    )
+        
+    app.state.redis = RedisService(redis_client)
+    
     yield
     # Shutdown
+    await redis_client.aclose()
+
 
 app = FastAPI(
     title=Config.PROJECT_NAME,
@@ -62,10 +77,10 @@ app = FastAPI(
         "name": "Demo admin",
         "email": "demo@gmail.com",
     },
-    
 )
 
-register_all_errors(app)
+register_global_error_handlers(app)
+register_auth_error_handlers(app)
 
 register_middleware(app)
 
@@ -89,7 +104,6 @@ app.include_router(auth_router, prefix=f"/api/{version}/auth", tags=["Auth"])
 app.include_router(profile_router, prefix=f"/api/{version}/profiles", tags=["Profiles"])
 
 
-
 @retry(stop=stop_after_delay(30), wait=wait_fixed(1))
 async def wait_for_db():
     """Wait for database to be ready"""
@@ -100,7 +114,6 @@ async def wait_for_db():
     except Exception as e:
         logging.info(f"DB not ready: {e}")
         raise
-
 
 
 # Custom OpenAPI schema to override 422 validation error response

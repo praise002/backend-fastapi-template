@@ -1,4 +1,3 @@
-
 import os
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
@@ -8,6 +7,7 @@ from unittest.mock import patch
 import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
+from redis import asyncio as aioredis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -16,8 +16,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
+from auth.redis import RedisService
+from config import Config
+from src.auth.config import auth_settings
 from src.auth.schemas import UserCreate
-from src.config import Config
 
 
 # --- POSTGRES CONTAINER (session-scoped: starts once, shared across all tests) ---
@@ -97,7 +99,7 @@ async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
         
 @pytest.fixture(scope="session")
 async def async_client(async_engine, set_test_env) -> AsyncGenerator[AsyncClient, None]:
-    from src.db.main import get_session
+    from src.db.database import get_session
     from src.limiter import limiter
     from src.main import app
     
@@ -125,7 +127,38 @@ async def async_client(async_engine, set_test_env) -> AsyncGenerator[AsyncClient
     limiter.enabled = True  # restore after session
     app.dependency_overrides.clear()
 
+@pytest.fixture(scope="session")
+def app_instance(async_engine, set_test_env):
+    from src.db.database import get_session
+    from src.main import app
 
+    async def override_get_session():
+        async_session = async_sessionmaker(
+            bind=async_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autoflush=False,
+        )
+        async with async_session() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    return app  # ← expose the app object directly
+
+@pytest.fixture
+def redis(app_instance) -> RedisService:
+    return app_instance.state.redis
+
+@pytest.fixture(autouse=True)
+async def setup_redis(app_instance):  # ← use app_instance, not async_client
+    redis_client = aioredis.from_url(
+        Config.REDIS_URL, encoding="utf-8", decode_responses=True
+    )
+    app_instance.state.redis = RedisService(redis_client)
+    yield
+    await redis_client.flushdb()
+    await redis_client.aclose()
+    
 # --- REDIS CLIENT (function-scoped: flush after each test) ---
 @pytest.fixture(scope="function")
 def redis_client(redis_container):
@@ -335,7 +368,7 @@ def expired_refresh_token():
         "jti": "expired-token-jti",
         "token_type": "refresh",
     }
-    return jwt.encode(user_data, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
+    return jwt.encode(user_data, auth_settings.JWT_SECRET, algorithm=auth_settings.JWT_ALGORITHM)
 
 
 @pytest.fixture
@@ -352,4 +385,4 @@ def expired_access_token():
         "jti": "expired-access-token-jti",
         "token_type": "access",
     }
-    return jwt.encode(user_data, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
+    return jwt.encode(user_data, auth_settings.JWT_SECRET, algorithm=auth_settings.JWT_ALGORITHM)

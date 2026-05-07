@@ -4,60 +4,6 @@ class BaseException(Exception):
     pass
 
 
-class NotAuthenticated(BaseException):
-    """User is not authenticated"""
-
-    pass
-
-
-class InvalidOtp(BaseException):
-    """User has provided an invalid or expired otp"""
-
-    pass
-
-
-class InvalidToken(BaseException):
-    """User has provided an invalid or expired token"""
-
-    pass
-
-
-class RevokedToken(BaseException):
-    """User has provided a token that has been revoked"""
-
-    pass
-
-
-class AccessTokenRequired(BaseException):
-    """User has provided a refresh token when an access token is needed"""
-
-    pass
-
-
-class RefreshTokenRequired(BaseException):
-    """User has provided an access token when a refresh token is needed"""
-
-    pass
-
-
-class UserAlreadyExists(BaseException):
-    """User has provided an email for a user who exists during sign up"""
-
-    pass
-
-
-class UsernameAlreadyExists(BaseException):
-    """Username exists"""
-
-    pass
-
-
-class InvalidCredentials(BaseException):
-    """User has provided wrong email or password during login"""
-
-    pass
-
-
 class UnprocessableEntity(BaseException):
     """
     Raised when the request is well-formed but contains semantic errors
@@ -136,42 +82,6 @@ class ImageUploadFailed(BaseException):
     def __init__(self, message: str = "Failed to upload image"):
         self.message = message
         super().__init__(self.message)
-
-
-class AccountNotVerified(BaseException):
-    """Account not yet verified"""
-
-    pass
-
-
-class UserNotActive(BaseException):
-    """User not active"""
-
-    pass
-
-
-class PasswordMismatch(BaseException):
-    """New password and confirm password deosn't match"""
-
-    pass
-
-
-class InvalidOldPassword(BaseException):
-    """Invalid old password"""
-
-    pass
-
-
-class PasswordSameAsOld(BaseException):
-    """New password is the same as the old password"""
-
-    pass
-
-
-class GoogleAuthenticationFailed(BaseException):
-    """Google authentication failed"""
-
-    pass
 
 
 class NoFilenameProvided(BaseException):

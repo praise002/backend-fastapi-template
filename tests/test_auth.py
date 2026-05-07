@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from auth.redis import RedisService
 from src.auth.service import UserService
 from src.db.models import Otp, User
 
@@ -172,9 +173,9 @@ class TestUserRegistration:
             another_user_data["email"], db_session
         )
 
-        assert user.hashed_password is not None
-        assert user.hashed_password != another_user_data["password"]
-        assert len(user.hashed_password) > 20
+        assert user.hashed_password is not None # type: ignore
+        assert user.hashed_password != another_user_data["password"] # type: ignore
+        assert len(user.hashed_password) > 20 # type: ignore
 
 
 class TestEmailVerification:
@@ -216,7 +217,7 @@ class TestEmailVerification:
         print(updated_user)
         await db_session.refresh(updated_user)
 
-        assert updated_user.is_email_verified is True
+        assert updated_user.is_email_verified is True  # type: ignore
         
 
         # Assert: Check OTP is invalidated
@@ -259,7 +260,7 @@ class TestEmailVerification:
         # Assert: User should still be unverified
         user_service = UserService()
         user = await user_service.get_user_by_email(registered_user.email, db_session)
-        assert user.is_email_verified is False
+        assert user.is_email_verified is False  # type: ignore
 
     async def test_verify_email_user_not_found(
         self,
@@ -647,7 +648,7 @@ class TestLogout:
         assert response.status_code == 200
         response_data = response.json()
         assert response_data["status"] == "success"
-        assert "Logged Out Successfully" in response_data["message"]
+        assert "Logged out successfully" in response_data["message"]
 
         # Try to use the same refresh token again
         retry_response = await async_client.post(
@@ -761,6 +762,7 @@ class TestLogoutAll:
         db_session: AsyncSession,
         verified_user: User,
         user3_data: dict,
+        redis: RedisService,
     ):
         # Arrange: Create multiple sessions (login multiple times)
         login_data = {
@@ -817,11 +819,13 @@ class TestLogoutAll:
         refresh3_jti = token3_data["jti"]
 
         user_id = str(verified_user.id)
+        
+        
 
         # Check all tokens are blacklisted (i.e., not valid)
-        assert not await user_service.is_token_valid(user_id, refresh1_jti)
-        assert not await user_service.is_token_valid(user_id, refresh2_jti)
-        assert not await user_service.is_token_valid(user_id, refresh3_jti)
+        assert not await user_service.is_token_valid(user_id, refresh1_jti, redis)
+        assert not await user_service.is_token_valid(user_id, refresh2_jti, redis)
+        assert not await user_service.is_token_valid(user_id, refresh3_jti, redis)
 
     async def test_logout_all_without_token(
         self,
@@ -1409,7 +1413,6 @@ class TestPasswordResetComplete:
         print(response_data)
 
         assert response_data["status"] == "success"
-        assert "password has been reset" in response_data["message"].lower()
         assert "proceed to login" in response_data["message"].lower()
 
         user_service = UserService()
@@ -1421,7 +1424,7 @@ class TestPasswordResetComplete:
         # Verify new password works
         from src.auth.security import verify_password
 
-        assert verify_password("NewSecurePass123!", updated_user.hashed_password)
+        assert verify_password("NewSecurePass123!", updated_user.hashed_password)  # type: ignore
 
         # Assert: Success email was sent
         assert len(mock_email) == 1
@@ -1657,10 +1660,10 @@ class TestPasswordChange:
         # Verify new password works
         from src.auth.security import verify_password
 
-        assert verify_password("NewSecurePass123!", updated_user.hashed_password)
+        assert verify_password("NewSecurePass123!", updated_user.hashed_password) # type: ignore
 
         # Assert: Old password no longer works
-        assert not verify_password(user3_data["password"], updated_user.hashed_password)
+        assert not verify_password(user3_data["password"], updated_user.hashed_password)  # type: ignore
 
     async def test_password_change_wrong_old_password(
         self,

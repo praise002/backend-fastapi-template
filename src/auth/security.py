@@ -7,7 +7,7 @@ from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
 
-from src.config import Config
+from auth.config import auth_settings
 
 password_hash = PasswordHash(
     (
@@ -29,7 +29,7 @@ def create_access_token(user_data: dict, expires_delta: timedelta | None = None)
     if expires_delta:
         duration = expires_delta
     else:
-        duration = timedelta(minutes=Config.ACCESS_TOKEN_EXPIRY)
+        duration = timedelta(minutes=auth_settings.ACCESS_TOKEN_EXPIRY)
 
     now = datetime.now(timezone.utc)
     expiry = now + duration
@@ -43,7 +43,7 @@ def create_access_token(user_data: dict, expires_delta: timedelta | None = None)
     }
 
     token = jwt.encode(
-        payload=payload, key=Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM
+        payload=payload, key=auth_settings.JWT_SECRET, algorithm=auth_settings.JWT_ALGORITHM
     )
 
     return token
@@ -51,7 +51,7 @@ def create_access_token(user_data: dict, expires_delta: timedelta | None = None)
 
 def create_refresh_token(user_data: dict, expiry: timedelta | None = None):
     if expiry is None:
-        expiry = timedelta(days=Config.REFRESH_TOKEN_EXPIRY)
+        expiry = timedelta(days=auth_settings.REFRESH_TOKEN_EXPIRY)
 
     now = datetime.now(timezone.utc)
     jti = str(uuid.uuid4())
@@ -65,7 +65,7 @@ def create_refresh_token(user_data: dict, expiry: timedelta | None = None):
     }  # user_id, full_name
 
     token = jwt.encode(
-        payload=payload, key=Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM
+        payload=payload, key=auth_settings.JWT_SECRET, algorithm=auth_settings.JWT_ALGORITHM
     )
 
     return token
@@ -74,7 +74,7 @@ def create_refresh_token(user_data: dict, expiry: timedelta | None = None):
 def decode_token(token: str) -> dict | None:
     try:
         token_data = jwt.decode(
-            jwt=token, key=Config.JWT_SECRET, algorithms=[Config.JWT_ALGORITHM]
+            jwt=token, key=auth_settings.JWT_SECRET, algorithms=[auth_settings.JWT_ALGORITHM]
         )
         return token_data
     except jwt.PyJWTError as e:
